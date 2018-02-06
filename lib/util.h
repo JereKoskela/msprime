@@ -119,6 +119,9 @@
 
 const char * msp_strerror(int err);
 void __msp_safe_free(void **ptr);
+
 #define msp_safe_free(pointer) __msp_safe_free((void **) &(pointer))
+#define MSP_MAX(a,b) ((a) > (b) ? (a) : (b))
+#define MSP_MIN(a,b) ((a) < (b) ? (a) : (b))
 
 #endif /*__UTIL_H__*/

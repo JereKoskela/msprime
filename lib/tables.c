@@ -23,8 +23,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include <gsl/gsl_math.h>
-
 #include "util.h"
 #include "tables.h"
 #include "object_heap.h"
@@ -120,7 +118,7 @@ static int
 node_table_expand_main_columns(node_table_t *self, table_size_t additional_rows)
 {
     int ret = 0;
-    table_size_t increment = GSL_MAX(additional_rows, self->max_rows_increment);
+    table_size_t increment = MSP_MAX(additional_rows, self->max_rows_increment);
     table_size_t new_size = self->max_rows + increment;
 
     if ((self->num_rows + additional_rows) > self->max_rows) {
@@ -151,7 +149,7 @@ static int
 node_table_expand_metadata(node_table_t *self, table_size_t additional_length)
 {
     int ret = 0;
-    table_size_t increment = GSL_MAX(additional_length,
+    table_size_t increment = MSP_MAX(additional_length,
             self->max_metadata_length_increment);
     table_size_t new_size = self->max_metadata_length + increment;
 
@@ -380,7 +378,7 @@ static int
 edge_table_expand_columns(edge_table_t *self, size_t additional_rows)
 {
     int ret = 0;
-    size_t increment = GSL_MAX(additional_rows, self->max_rows_increment);
+    size_t increment = MSP_MAX(additional_rows, self->max_rows_increment);
     size_t new_size = self->max_rows + increment;
 
     if ((self->num_rows + additional_rows) > self->max_rows) {
@@ -545,7 +543,7 @@ static int
 site_table_expand_main_columns(site_table_t *self, size_t additional_rows)
 {
     int ret = 0;
-    table_size_t increment = (table_size_t) GSL_MAX(additional_rows, self->max_rows_increment);
+    table_size_t increment = (table_size_t) MSP_MAX(additional_rows, self->max_rows_increment);
     table_size_t new_size = self->max_rows + increment;
 
     if ((self->num_rows + additional_rows) > self->max_rows) {
@@ -573,7 +571,7 @@ static int
 site_table_expand_ancestral_state(site_table_t *self, size_t additional_length)
 {
     int ret = 0;
-    table_size_t increment = (table_size_t) GSL_MAX(additional_length,
+    table_size_t increment = (table_size_t) MSP_MAX(additional_length,
             self->max_ancestral_state_length_increment);
     table_size_t new_size = self->max_ancestral_state_length + increment;
 
@@ -593,7 +591,7 @@ static int
 site_table_expand_metadata(site_table_t *self, size_t additional_length)
 {
     int ret = 0;
-    table_size_t increment = (table_size_t) GSL_MAX(additional_length,
+    table_size_t increment = (table_size_t) MSP_MAX(additional_length,
             self->max_metadata_length_increment);
     table_size_t new_size = self->max_metadata_length + increment;
 
@@ -876,7 +874,7 @@ static int
 mutation_table_expand_main_columns(mutation_table_t *self, size_t additional_rows)
 {
     int ret = 0;
-    table_size_t increment = (table_size_t) GSL_MAX(additional_rows, self->max_rows_increment);
+    table_size_t increment = (table_size_t) MSP_MAX(additional_rows, self->max_rows_increment);
     table_size_t new_size = self->max_rows + increment;
 
     if ((self->num_rows + additional_rows) > self->max_rows) {
@@ -912,7 +910,7 @@ static int
 mutation_table_expand_derived_state(mutation_table_t *self, size_t additional_length)
 {
     int ret = 0;
-    table_size_t increment = (table_size_t) GSL_MAX(additional_length,
+    table_size_t increment = (table_size_t) MSP_MAX(additional_length,
             self->max_derived_state_length_increment);
     table_size_t new_size = self->max_derived_state_length + increment;
 
@@ -932,7 +930,7 @@ static int
 mutation_table_expand_metadata(mutation_table_t *self, size_t additional_length)
 {
     int ret = 0;
-    table_size_t increment = (table_size_t) GSL_MAX(additional_length,
+    table_size_t increment = (table_size_t) MSP_MAX(additional_length,
             self->max_metadata_length_increment);
     table_size_t new_size = self->max_metadata_length + increment;
 
@@ -1235,7 +1233,7 @@ static int
 migration_table_expand(migration_table_t *self, size_t additional_rows)
 {
     int ret = 0;
-    size_t increment = GSL_MAX(additional_rows, self->max_rows_increment);
+    size_t increment = MSP_MAX(additional_rows, self->max_rows_increment);
     size_t new_size = self->max_rows + increment;
 
     if ((self->num_rows + additional_rows) > self->max_rows) {
@@ -1401,7 +1399,7 @@ static int
 provenance_table_expand_main_columns(provenance_table_t *self, table_size_t additional_rows)
 {
     int ret = 0;
-    table_size_t increment = GSL_MAX(additional_rows, self->max_rows_increment);
+    table_size_t increment = MSP_MAX(additional_rows, self->max_rows_increment);
     table_size_t new_size = self->max_rows + increment;
 
     if ((self->num_rows + additional_rows) > self->max_rows) {
@@ -1425,7 +1423,7 @@ static int
 provenance_table_expand_timestamp(provenance_table_t *self, table_size_t additional_length)
 {
     int ret = 0;
-    table_size_t increment = GSL_MAX(additional_length,
+    table_size_t increment = MSP_MAX(additional_length,
             self->max_timestamp_length_increment);
     table_size_t new_size = self->max_timestamp_length + increment;
 
@@ -1444,7 +1442,7 @@ static int
 provenance_table_expand_provenance(provenance_table_t *self, table_size_t additional_length)
 {
     int ret = 0;
-    table_size_t increment = GSL_MAX(additional_length,
+    table_size_t increment = MSP_MAX(additional_length,
             self->max_record_length_increment);
     table_size_t new_size = self->max_record_length + increment;
 
@@ -2582,7 +2580,7 @@ simplifier_alloc(simplifier_t *self, double sequence_length,
         /* infer sequence length from the edges */
         sequence_length = 0.0;
         for (j = 0; j < edges->num_rows; j++) {
-            sequence_length = GSL_MAX(sequence_length, edges->right[j]);
+            sequence_length = MSP_MAX(sequence_length, edges->right[j]);
         }
         if (sequence_length <= 0.0) {
             ret = MSP_ERR_BAD_SEQUENCE_LENGTH;
@@ -2601,8 +2599,8 @@ simplifier_alloc(simplifier_t *self, double sequence_length,
     /* If we have more then 256K blocks or edges just allocate this much */
     max_alloc_block = 256 * 1024;
     /* Need to avoid malloc(0) so make sure we have at least 1. */
-    num_nodes_alloc = GSL_MAX(max_alloc_block, 1 + nodes->num_rows);
-    num_edges_alloc = GSL_MAX(max_alloc_block, 1 + edges->num_rows);
+    num_nodes_alloc = MSP_MAX(max_alloc_block, 1 + nodes->num_rows);
+    num_edges_alloc = MSP_MAX(max_alloc_block, 1 + edges->num_rows);
 
     /* TODO we can add a flag to skip these checks for when we know they are
      * unnecessary */
@@ -2989,7 +2987,7 @@ simplifier_merge_ancestors(simplifier_t *self, node_id_t input_id)
         r = self->sequence_length;
         while (node != NULL && ((simplify_segment_t *) node->item)->left == l) {
             H[h] = (simplify_segment_t *) node->item;
-            r = GSL_MIN(r, H[h]->right);
+            r = MSP_MIN(r, H[h]->right);
             h++;
             simplifier_free_avl_node(self, node);
             avl_unlink_node(Q, node);
@@ -2998,7 +2996,7 @@ simplifier_merge_ancestors(simplifier_t *self, node_id_t input_id)
         next_l = 0;
         if (node != NULL) {
             next_l = ((simplify_segment_t *) node->item)->left;
-            r = GSL_MIN(r, next_l);
+            r = MSP_MIN(r, next_l);
         }
         if (h == 1) {
             x = H[0];
