@@ -23,6 +23,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include <hdf5.h>
+
 #include "util.h"
 #include "tables.h"
 #include "object_heap.h"
@@ -3306,5 +3308,288 @@ simplifier_run(simplifier_t *self, node_id_t *node_map)
         memcpy(node_map, self->node_id_map, self->input_nodes.num_rows * sizeof(node_id_t));
     }
 out:
+    return ret;
+}
+
+/*************************
+ * tables_file
+ *************************/
+
+int
+tables_file_alloc(tables_file_t *self)
+{
+    memset(self, 0, sizeof(*self));
+
+    return 0;
+}
+
+int
+tables_file_free(tables_file_t *self)
+{
+    return 0;
+}
+
+/* Reads the metadata for the overall file and updates the basic
+ * information in the tables_file.
+ */
+static int
+tables_file_read_hdf5_metadata(tables_file_t *self, hid_t file_id)
+{
+    int ret = MSP_ERR_HDF5;
+    hid_t attr_id, dataspace_id;
+    herr_t status;
+    int rank;
+    hsize_t dims;
+    uint32_t version[2];
+
+    attr_id = H5Aopen_by_name(file_id, "/", "format_version", H5P_DEFAULT, H5P_DEFAULT);
+    if (attr_id < 0) {
+        goto out;
+    }
+    dataspace_id = H5Aget_space(attr_id);
+    if (dataspace_id < 0) {
+        goto out;
+    }
+    rank = H5Sget_simple_extent_ndims(dataspace_id);
+    if (rank != 1) {
+        ret = MSP_ERR_FILE_FORMAT;
+        goto out;
+    }
+    status = H5Sget_simple_extent_dims(dataspace_id, &dims, NULL);
+    if (status < 0) {
+        goto out;
+    }
+    if (dims != 2) {
+        ret = MSP_ERR_FILE_FORMAT;
+        goto out;
+    }
+    status = H5Aread(attr_id, H5T_NATIVE_UINT32, version);
+    if (status < 0) {
+        goto out;
+    }
+    status = H5Sclose(dataspace_id);
+    if (status < 0) {
+        goto out;
+    }
+    status = H5Aclose(attr_id);
+    if (status < 0) {
+        goto out;
+    }
+
+    attr_id = H5Aopen_by_name(file_id, "/", "sequence_length", H5P_DEFAULT, H5P_DEFAULT);
+    if (attr_id < 0) {
+        goto out;
+    }
+    dataspace_id = H5Aget_space(attr_id);
+    if (dataspace_id < 0) {
+        goto out;
+    }
+    rank = H5Sget_simple_extent_ndims(dataspace_id);
+    if (rank != 1) {
+        ret = MSP_ERR_FILE_FORMAT;
+        goto out;
+    }
+    status = H5Sget_simple_extent_dims(dataspace_id, &dims, NULL);
+    if (status < 0) {
+        goto out;
+    }
+    if (dims != 1) {
+        ret = MSP_ERR_FILE_FORMAT;
+        goto out;
+    }
+    status = H5Aread(attr_id, H5T_NATIVE_DOUBLE, &self->sequence_length);
+    if (status < 0) {
+        goto out;
+    }
+    status = H5Sclose(dataspace_id);
+    if (status < 0) {
+        goto out;
+    }
+    status = H5Aclose(attr_id);
+    if (status < 0) {
+        goto out;
+    }
+
+    /* Sanity check */
+    if (version[0] < MSP_FILE_FORMAT_VERSION_MAJOR) {
+        ret = MSP_ERR_FILE_VERSION_TOO_OLD;
+        goto out;
+    }
+    if (version[0] > MSP_FILE_FORMAT_VERSION_MAJOR) {
+        ret = MSP_ERR_FILE_VERSION_TOO_NEW;
+        goto out;
+    }
+    if (self->sequence_length <= 0.0) {
+        ret = MSP_ERR_BAD_SEQUENCE_LENGTH;
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+/* Reads the groups within the HDF5 file to ensure that they exist.
+ */
+static int
+tables_file_read_hdf5_groups(tables_file_t *self, hid_t file_id)
+{
+    int ret = MSP_ERR_HDF5;
+    htri_t exists;
+    const char* groups[] = {
+        "/edges",
+        "/edges/indexes",
+        "/nodes",
+        "/sites",
+        "/mutations",
+        "/migrations",
+        "/provenances",
+    };
+    size_t num_groups = sizeof(groups) / sizeof(const char *);
+    size_t j;
+
+    for (j = 0; j < num_groups; j++) {
+        exists = H5Lexists(file_id, groups[j], H5P_DEFAULT);
+        if (exists < 0) {
+            goto out;
+        }
+        if (! exists) {
+            ret = MSP_ERR_FILE_FORMAT;
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    return ret;
+
+}
+
+/* Reads the dimensions for each table and allocs it.
+ */
+static int
+tables_file_read_hdf5_dimensions(tables_file_t *self, hid_t file_id)
+{
+    int ret = MSP_ERR_HDF5;
+    hid_t dataset_id, dataspace_id;
+    herr_t status;
+    htri_t exists;
+    int rank;
+    hsize_t dims;
+
+    size_t num_nodes = 0;
+    size_t num_edges = 0;
+    size_t num_sites = 0;
+    size_t num_mutations = 0;
+    size_t num_migrations = 0;
+    size_t num_provenances = 0;
+    size_t ancestral_state_length = 0;
+    size_t derived_state_length = 0;
+    size_t site_metadata_length = 0;
+    size_t mutation_metadata_length = 0;
+    size_t node_metadata_length = 0;
+    size_t provenance_timestamp_length = 0;
+    size_t provenance_record_length = 0;
+
+    struct _dimension_read {
+        const char *name;
+        size_t *dest;
+    };
+    struct _dimension_read fields[] = {
+        {"/sites/position", &num_sites},
+        {"/sites/ancestral_state", &ancestral_state_length},
+        {"/sites/metadata", &site_metadata_length},
+        {"/mutations/site", &num_mutations},
+        {"/mutations/derived_state", &derived_state_length},
+        {"/mutations/metadata", &mutation_metadata_length},
+        {"/nodes/time", &num_nodes},
+        {"/nodes/metadata", &node_metadata_length},
+        {"/edges/left", &num_edges},
+        {"/migrations/left", &num_migrations},
+        {"/provenances/timestamp_offset", &num_provenances},
+        {"/provenances/timestamp", &provenance_timestamp_length},
+        {"/provenances/record", &provenance_record_length},
+    };
+    size_t num_fields = sizeof(fields) / sizeof(struct _dimension_read);
+    size_t j;
+
+    for (j = 0; j < num_fields; j++) {
+        *fields[j].dest = 0;
+        exists = H5Lexists(file_id, fields[j].name, H5P_DEFAULT);
+        if (exists < 0) {
+            goto out;
+        }
+        if (exists) {
+            dataset_id = H5Dopen(file_id, fields[j].name, H5P_DEFAULT);
+            if (dataset_id < 0) {
+                ret = MSP_ERR_FILE_FORMAT;
+                goto out;
+            }
+            dataspace_id = H5Dget_space(dataset_id);
+            if (dataspace_id < 0) {
+                goto out;
+            }
+            rank = H5Sget_simple_extent_ndims(dataspace_id);
+            if (rank != 1) {
+                ret = MSP_ERR_FILE_FORMAT;
+                goto out;
+            }
+            status = H5Sget_simple_extent_dims(dataspace_id, &dims, NULL);
+            if (status < 0) {
+                goto out;
+            }
+            *fields[j].dest = (size_t) dims;
+            status = H5Sclose(dataspace_id);
+            if (status < 0) {
+                goto out;
+            }
+            status = H5Dclose(dataset_id);
+            if (status < 0) {
+                goto out;
+            }
+        }
+    }
+    /* provenance is a special case because we have no simple columns. We must
+     * have at least one rown in the offsets col or we have an error. */
+    if (num_provenances == 0) {
+        goto out;
+    }
+    num_provenances -= 1;
+    /* TODO the tables with the required dimensions. */
+
+    ret = 0;
+out:
+    return ret;
+}
+
+int
+tables_file_load(tables_file_t *self, const char *filename)
+{
+    int ret = MSP_ERR_GENERIC;
+    herr_t status;
+    hid_t file_id = -1;
+
+    file_id = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+    if (file_id < 0) {
+        ret = MSP_ERR_HDF5;
+        goto out;
+    }
+    ret = tables_file_read_hdf5_metadata(self, file_id);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tables_file_read_hdf5_groups(self, file_id);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tables_file_read_hdf5_dimensions(self, file_id);
+    if (ret < 0) {
+        goto out;
+    }
+out:
+    if (file_id >= 0) {
+        status = H5Fclose(file_id);
+        if (status < 0) {
+            ret = MSP_ERR_HDF5;
+        }
+    }
     return ret;
 }

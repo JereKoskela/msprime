@@ -44,6 +44,14 @@
 /* Flags for dump tables */
 #define MSP_ALLOC_TABLES 1
 
+/* Flags for tree sequence dump/load */
+#define MSP_DUMP_ZLIB_COMPRESSION 1
+#define MSP_LOAD_EXTENDED_CHECKS  1
+
+#define MSP_FILE_FORMAT_VERSION_MAJOR 10
+#define MSP_FILE_FORMAT_VERSION_MINOR 0
+
+
 /* Error codes */
 #define MSP_ERR_GENERIC                                             -1
 #define MSP_ERR_NO_MEMORY                                           -2

@@ -35,14 +35,6 @@
 #include "object_heap.h"
 #include "tables.h"
 
-/* Flags for tree sequence dump/load */
-#define MSP_DUMP_ZLIB_COMPRESSION 1
-#define MSP_LOAD_EXTENDED_CHECKS  1
-
-#define MSP_FILE_FORMAT_VERSION_MAJOR 10
-#define MSP_FILE_FORMAT_VERSION_MINOR 0
-
-
 #define MSP_SAMPLE_COUNTS  1
 #define MSP_SAMPLE_LISTS   2
 

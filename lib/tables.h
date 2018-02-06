@@ -228,8 +228,15 @@ typedef struct {
     mutation_position_map_t *mutation_position_map_mem;
 } simplifier_t;
 
-int sort_tables(node_table_t *nodes, edge_table_t *edges, migration_table_t *migrations,
-        site_table_t *sites, mutation_table_t *mutations, size_t edge_start);
+typedef struct {
+    const char *filename;
+    double sequence_length;
+    node_table_t *nodes;
+    edge_table_t *edges;
+    /* Other tables */
+
+} tables_file_t;
+
 
 int node_table_alloc(node_table_t *self, size_t max_rows_increment,
         size_t max_name_length_increment);
@@ -309,15 +316,6 @@ int migration_table_clear(migration_table_t *self);
 int migration_table_free(migration_table_t *self);
 void migration_table_print_state(migration_table_t *self, FILE *out);
 
-int simplifier_alloc(simplifier_t *self, double sequence_length,
-        node_id_t *samples, size_t num_samples,
-        node_table_t *nodes, edge_table_t *edges, migration_table_t *migrations,
-        site_table_t *sites, mutation_table_t *mutations,
-        size_t max_buffered_edges, int flags);
-int simplifier_free(simplifier_t *self);
-int simplifier_run(simplifier_t *self, node_id_t *node_map);
-void simplifier_print_state(simplifier_t *self, FILE *out);
-
 int provenance_table_alloc(provenance_table_t *self, size_t max_rows_increment,
         size_t max_timestamp_length_increment,
         size_t max_provenance_length_increment);
@@ -335,6 +333,21 @@ int provenance_table_free(provenance_table_t *self);
 void provenance_table_print_state(provenance_table_t *self, FILE *out);
 bool provenance_table_equal(provenance_table_t *self, provenance_table_t *other);
 
+int simplifier_alloc(simplifier_t *self, double sequence_length,
+        node_id_t *samples, size_t num_samples,
+        node_table_t *nodes, edge_table_t *edges, migration_table_t *migrations,
+        site_table_t *sites, mutation_table_t *mutations,
+        size_t max_buffered_edges, int flags);
+int simplifier_free(simplifier_t *self);
+int simplifier_run(simplifier_t *self, node_id_t *node_map);
+void simplifier_print_state(simplifier_t *self, FILE *out);
+
+int tables_file_alloc(tables_file_t *self);
+int tables_file_free(tables_file_t *self);
+int tables_file_load(tables_file_t *self, const char *filename);
+
+int sort_tables(node_table_t *nodes, edge_table_t *edges, migration_table_t *migrations,
+        site_table_t *sites, mutation_table_t *mutations, size_t edge_start);
 int squash_edges(edge_t *edges, size_t num_edges, size_t *num_output_edges);
 
 #ifdef __cplusplus
