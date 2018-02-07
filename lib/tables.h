@@ -110,6 +110,17 @@ typedef struct {
     table_size_t *record_offset;
 } provenance_table_t;
 
+typedef struct {
+    double sequence_length;
+    node_table_t nodes;
+    edge_table_t edges;
+    migration_table_t migrations;
+    site_table_t sites;
+    mutation_table_t mutations;
+    provenance_table_t provenances;
+    /* TODO Add in reserved space for future tables. */
+} table_collection_t;
+
 /* Definitions for the basic objects */
 typedef struct {
     uint32_t flags;
@@ -228,16 +239,6 @@ typedef struct {
     mutation_position_map_t *mutation_position_map_mem;
 } simplifier_t;
 
-typedef struct {
-    const char *filename;
-    double sequence_length;
-    node_table_t *nodes;
-    edge_table_t *edges;
-    /* Other tables */
-
-} tables_file_t;
-
-
 int node_table_alloc(node_table_t *self, size_t max_rows_increment,
         size_t max_name_length_increment);
 node_id_t node_table_add_row(node_table_t *self, uint32_t flags, double time,
@@ -333,6 +334,12 @@ int provenance_table_free(provenance_table_t *self);
 void provenance_table_print_state(provenance_table_t *self, FILE *out);
 bool provenance_table_equal(provenance_table_t *self, provenance_table_t *other);
 
+int table_collection_alloc(table_collection_t *self, int flags);
+int table_collection_print_state(table_collection_t *self, FILE *out);
+int table_collection_load(table_collection_t *self, const char *filename, int flags);
+int table_collection_dump(table_collection_t *tables, const char *filename, int flags);
+int table_collection_free(table_collection_t *self);
+
 int simplifier_alloc(simplifier_t *self, double sequence_length,
         node_id_t *samples, size_t num_samples,
         node_table_t *nodes, edge_table_t *edges, migration_table_t *migrations,
@@ -342,9 +349,6 @@ int simplifier_free(simplifier_t *self);
 int simplifier_run(simplifier_t *self, node_id_t *node_map);
 void simplifier_print_state(simplifier_t *self, FILE *out);
 
-int tables_file_alloc(tables_file_t *self);
-int tables_file_free(tables_file_t *self);
-int tables_file_load(tables_file_t *self, const char *filename);
 
 int sort_tables(node_table_t *nodes, edge_table_t *edges, migration_table_t *migrations,
         site_table_t *sites, mutation_table_t *mutations, size_t edge_start);
